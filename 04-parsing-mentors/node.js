@@ -2,6 +2,11 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const fs = require('fs').promises;
 
+// Function to add delay between requests
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function readUrlsFromFile(filename) {
     try {
         const data = await fs.readFile(filename, 'utf8');
@@ -38,7 +43,7 @@ async function scrapeWebsite(url) {
     }
 }
 
-async function scrapeAllWebsites(urls) {
+async function scrapeAllWebsites(urls, delayMs = 2000) {
     const results = [];
 
     for (const url of urls) {
@@ -47,6 +52,8 @@ async function scrapeAllWebsites(urls) {
         if (result) {
             results.push(result);
         }
+        console.log(`Waiting for ${delayMs}ms before next request...`);
+        await delay(delayMs);
     }
 
     return results;
@@ -64,6 +71,7 @@ async function saveResultsToFile(results, filename) {
 async function main() {
     const urlsFile = 'urls.txt';
     const resultsFile = 'results.json';
+    const delayBetweenRequests = 2000; // 2 seconds delay, adjust as needed
 
     try {
         const urls = await readUrlsFromFile(urlsFile);
@@ -73,7 +81,7 @@ async function main() {
         }
 
         console.log(`Found ${urls.length} URLs to scrape.`);
-        const results = await scrapeAllWebsites(urls);
+        const results = await scrapeAllWebsites(urls, delayBetweenRequests);
         await saveResultsToFile(results, resultsFile);
     } catch (error) {
         console.error('An error occurred in the main process:', error);
