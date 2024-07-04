@@ -1,12 +1,16 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
+const fs = require('fs').promises;
 
-// List of URLs to scrape
-const urls = [
-  'https://getmentor.dev/mentor/petr-kostiukov-2466',
-  'https://getmentor.dev/mentor/korovin-vladimir-3450',
-  // Add more URLs as needed
-];
+async function readUrlsFromFile(filename) {
+    try {
+        const data = await fs.readFile(filename, 'utf8');
+        return data.split('\n').filter(url => url.trim() !== '');
+    } catch (error) {
+        console.error(`Error reading file ${filename}:`, error.message);
+        return [];
+    }
+}
 
 async function scrapeWebsite(url) {
     try {
@@ -16,50 +20,64 @@ async function scrapeWebsite(url) {
 
         const $ = cheerio.load(response.data);
 
-        const result = {};
+        const result = { url };
 
         // Extract data from <div class="flex-1">
         const flex1Div = $('.flex-1');
-        if (flex1Div.length === 0) {
-            console.warn(`Warning: Could not find <div class="flex-1"> on ${url}`);
-        }
         result.title = flex1Div.find('h1.mb-2').text().trim();
         result.subtitle = flex1Div.find('div.mb-3').text().trim();
 
         // Extract data from <div class="prose my-4">
         const proseDiv = $('.prose.my-4');
-        if (proseDiv.length === 0) {
-            console.warn(`Warning: Could not find <div class="prose my-4"> on ${url}`);
-        }
         result.paragraphs = proseDiv.find('p').map((i, el) => $(el).text().trim()).get();
 
-        console.log(`Scraped data from ${url}:`, result);
         return result;
     } catch (error) {
         console.error(`Error scraping ${url}:`, error.message);
-        if (error.response) {
-            console.error(`HTTP Status: ${error.response.status}`);
-            console.error(`Response headers:`, error.response.headers);
-        }
         return null;
     }
 }
 
-async function scrapeAllWebsites() {
+async function scrapeAllWebsites(urls) {
     const results = [];
 
     for (const url of urls) {
         console.log(`Starting to scrape ${url}...`);
         const result = await scrapeWebsite(url);
         if (result) {
-            results.push({ url, ...result });
+            results.push(result);
         }
     }
 
-    console.log('Scraping completed. Results:');
-    console.log(JSON.stringify(results, null, 2));
+    return results;
 }
 
-scrapeAllWebsites().catch(error => {
-    console.error('An error occurred in the main scraping process:', error);
-});
+async function saveResultsToFile(results, filename) {
+    try {
+        await fs.writeFile(filename, JSON.stringify(results, null, 2));
+        console.log(`Results saved to ${filename}`);
+    } catch (error) {
+        console.error(`Error saving results to ${filename}:`, error.message);
+    }
+}
+
+async function main() {
+    const urlsFile = 'urls.txt';
+    const resultsFile = 'results.json';
+
+    try {
+        const urls = await readUrlsFromFile(urlsFile);
+        if (urls.length === 0) {
+            console.log('No URLs found in the file. Exiting.');
+            return;
+        }
+
+        console.log(`Found ${urls.length} URLs to scrape.`);
+        const results = await scrapeAllWebsites(urls);
+        await saveResultsToFile(results, resultsFile);
+    } catch (error) {
+        console.error('An error occurred in the main process:', error);
+    }
+}
+
+main();
