@@ -2,7 +2,6 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const fs = require('fs').promises;
 
-// Function to add delay between requests
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -20,7 +19,7 @@ async function readUrlsFromFile(filename) {
 async function scrapeWebsite(url) {
     try {
         console.log(`Fetching ${url}...`);
-        const response = await axios.get(url, { timeout: 10000 }); // 10 second timeout
+        const response = await axios.get(url, { timeout: 10000 });
         console.log(`Successfully fetched ${url}`);
 
         const $ = cheerio.load(response.data);
@@ -32,9 +31,21 @@ async function scrapeWebsite(url) {
         result.title = flex1Div.find('h1.mb-2').text().trim();
         result.subtitle = flex1Div.find('div.mb-3').text().trim();
 
-        // Extract data from <div class="prose my-4">
-        const proseDiv = $('.prose.my-4');
-        result.paragraphs = proseDiv.find('p').map((i, el) => $(el).text().trim()).get();
+        // Extract data from all <div class="prose my-4">
+        result.paragraphs = [];
+        $('.prose.my-4').each((index, element) => {
+            const proseDiv = $(element);
+            
+            // Extract paragraphs
+            proseDiv.find('p').each((i, el) => {
+                result.paragraphs.push($(el).text().trim());
+            });
+
+            // Extract content from <i> tags
+            proseDiv.find('i').each((i, el) => {
+                result.paragraphs.push(`<i>${$(el).text().trim()}</i>`);
+            });
+        });
 
         return result;
     } catch (error) {
@@ -71,7 +82,7 @@ async function saveResultsToFile(results, filename) {
 async function main() {
     const urlsFile = 'urls.txt';
     const resultsFile = 'results.json';
-    const delayBetweenRequests = 2000; // 2 seconds delay, adjust as needed
+    const delayBetweenRequests = 2000; // 2 seconds delay
 
     try {
         const urls = await readUrlsFromFile(urlsFile);
