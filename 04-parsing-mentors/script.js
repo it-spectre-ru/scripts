@@ -31,19 +31,31 @@ async function scrapeWebsite(url) {
         result.title = flex1Div.find('h1.mb-2').text().trim();
         result.subtitle = flex1Div.find('div.mb-3').text().trim();
 
-        // Extract data from all <div class="prose my-4">
+        // Initialize arrays for paragraphs and competitions
         result.paragraphs = [];
+        result.competitions = [];
+
+        // Extract data from all <div class="prose my-4">
         $('.prose.my-4').each((index, element) => {
             const proseDiv = $(element);
             
-            // Extract paragraphs
+            // Extract paragraphs (excluding <i> tags)
             proseDiv.find('p').each((i, el) => {
-                result.paragraphs.push($(el).text().trim());
+                const $el = $(el);
+                // Remove <i> tags from paragraphs and add them to competitions
+                $el.find('i').each((j, iEl) => {
+                    result.competitions.push($(iEl).text().trim());
+                    $(iEl).remove();
+                });
+                const paragraphText = $el.text().trim();
+                if (paragraphText) {
+                    result.paragraphs.push(paragraphText);
+                }
             });
 
-            // Extract content from <i> tags
-            proseDiv.find('i').each((i, el) => {
-                result.paragraphs.push(`<i>${$(el).text().trim()}</i>`);
+            // Extract standalone <i> tags (not within paragraphs)
+            proseDiv.children('i').each((i, el) => {
+                result.competitions.push($(el).text().trim());
             });
         });
 
